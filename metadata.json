@@ -1,6 +1,6 @@
 {
   "name": "GS EarthMovers Billing",
-  "description": "Generate professional work bills/invoices for GS EarthMovers and export them as PDF files.",
+  "description": "Generate professional bills/invoices for GS EarthMovers with automated client management and dynamic, customizable circular background watermarks exported as high-fidelity PDFs.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

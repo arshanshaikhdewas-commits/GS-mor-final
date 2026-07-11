@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Bill, Language, ThemeMode } from "./types";
+import { CheckCircle2, AlertCircle } from "lucide-react";
+import { Bill, Language, ThemeMode, Client } from "./types";
 import { HomeScreen } from "./components/HomeScreen";
 import { CreateBillScreen } from "./components/CreateBillScreen";
 import { ViewBillScreen } from "./components/ViewBillScreen";
@@ -29,10 +30,33 @@ export default function App() {
     return (saved as ThemeMode) || "light";
   });
 
+  const [clients, setClients] = useState<Client[]>(() => {
+    const saved = localStorage.getItem("gs_clients");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
+
   // --- UI and Navigation State ---
   const [currentScreen, setCurrentScreen] = useState<"home" | "create" | "view">("home");
   const [selectedBillId, setSelectedBillId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  // Auto-clear toast notification
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => {
+        setToast(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   // --- Auto Invoice Number Generation ---
   const [nextInvoiceNumber, setNextInvoiceNumber] = useState("GS-2026-001");
@@ -46,6 +70,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("gs_language", language);
   }, [language]);
+
+  useEffect(() => {
+    localStorage.setItem("gs_clients", JSON.stringify(clients));
+  }, [clients]);
 
   // Sync dark class on document element
   useEffect(() => {
@@ -100,10 +128,34 @@ export default function App() {
   };
 
   const handleDeleteBill = (billToDelete: Bill) => {
-    setBills((prev) => prev.filter((b) => b.id !== billToDelete.id));
-    if (selectedBillId === billToDelete.id) {
-      setSelectedBillId(null);
-      setCurrentScreen("home");
+    try {
+      if (!billToDelete || billToDelete.id === undefined) {
+        throw new Error("Invalid bill or missing bill ID.");
+      }
+
+      setBills((prev) => {
+        const updated = prev.filter((b) => String(b.id) !== String(billToDelete.id));
+        if (updated.length === prev.length) {
+          throw new Error(language === "hi" ? "संबंधित विधेयक डेटाबेस में नहीं मिला।" : "The selected bill was not found in storage.");
+        }
+        return updated;
+      });
+
+      if (String(selectedBillId) === String(billToDelete.id)) {
+        setSelectedBillId(null);
+        setCurrentScreen("home");
+      }
+
+      setToast({
+        type: "success",
+        message: language === "hi" ? "विधेयक सफलतापूर्वक हटा दिया गया!" : "Bill deleted successfully.",
+      });
+    } catch (error: any) {
+      console.error("Failed to delete bill:", error);
+      setToast({
+        type: "error",
+        message: (language === "hi" ? "विधेयक हटाने में विफल: " : "Failed to delete bill: ") + (error?.message || "Unknown error"),
+      });
     }
   };
 
@@ -122,6 +174,8 @@ export default function App() {
           >
             <HomeScreen
               bills={bills}
+              clients={clients}
+              setClients={setClients}
               language={language}
               theme={theme}
               searchQuery={searchQuery}
@@ -148,6 +202,7 @@ export default function App() {
           >
             <CreateBillScreen
               language={language}
+              clients={clients}
               nextInvoiceNumber={nextInvoiceNumber}
               onBack={() => setCurrentScreen("home")}
               onSave={handleSaveBill}
@@ -172,6 +227,30 @@ export default function App() {
               }}
               onDelete={handleDeleteBill}
             />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Global Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-xl border text-sm font-semibold transition-all bg-white dark:bg-slate-900 ${
+              toast.type === "success"
+                ? "border-emerald-500/20 text-emerald-600 dark:text-emerald-400 shadow-emerald-500/[0.04]"
+                : "border-rose-500/20 text-rose-600 dark:text-rose-400 shadow-rose-500/[0.04]"
+            }`}
+            id="global-toast"
+          >
+            {toast.type === "success" ? (
+              <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-emerald-500" />
+            ) : (
+              <AlertCircle className="w-5 h-5 flex-shrink-0 text-rose-500" />
+            )}
+            <span>{toast.message}</span>
           </motion.div>
         )}
       </AnimatePresence>

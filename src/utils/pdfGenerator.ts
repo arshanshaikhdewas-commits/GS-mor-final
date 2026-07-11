@@ -1,5 +1,6 @@
-import { jsPDF } from "jspdf";
-import { Bill } from "../types";
+import { jsPDF, GState } from "jspdf";
+import { Bill, InvoiceItem } from "../types";
+import { watermarkImage } from "./watermarkImage";
 
 export const generatePdf = (bill: Bill, save: boolean = true): string | jsPDF => {
   const doc = new jsPDF({
@@ -25,6 +26,148 @@ export const generatePdf = (bill: Bill, save: boolean = true): string | jsPDF =>
     doc.setLineWidth(1);
     doc.line(margin, y, rightMargin, y);
   };
+
+  // Draw Circular Background Watermark with 30% Opacity (0.3)
+  const drawWatermark = () => {
+    // Read dynamic watermark from localStorage
+    const savedWatermark = typeof window !== "undefined" ? localStorage.getItem("gs_watermark") : null;
+    
+    // If watermark has been removed, don't render any watermark on the PDF
+    if (savedWatermark === "none") {
+      return;
+    }
+
+    const watermarkSource = savedWatermark || watermarkImage;
+    const isCustom = !!savedWatermark;
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    // Default watermark aspect ratio is 1200 / 896, custom uploaded/cropped is a perfect 1:1 square
+    const imgRatio = isCustom ? 1.0 : (1200 / 896);
+
+    // Limit the watermark size to a maximum of 25-30% of the page width (we choose 28%)
+    const maxPercentWidth = 0.28;
+    let drawWidth = pageWidth * maxPercentWidth;
+    let drawHeight = drawWidth / imgRatio;
+
+    // --- DRY RUN LAYOUT CALCULATION TO FIND BACKGROUND SPACE ---
+    const calculateUpperContentBottomY = (): number => {
+      let tempCurrentY = 135; // Divider after metadata is at 135
+      tempCurrentY += 25;     // Client details start at 160
+      const tempDetailsY = tempCurrentY;
+      tempCurrentY += 75;     // Divider before table is at 235
+      tempCurrentY += 15;     // Table start is at 250
+      const tempTableY = tempCurrentY;
+
+      const tempItems: InvoiceItem[] = bill.items && bill.items.length > 0 ? bill.items : [
+        {
+          id: "old-fallback",
+          name: bill.workDescription || "Earthwork Contracting Services",
+          description: "",
+          quantity: bill.totalWorkingHours || 0,
+          rate: bill.ratePerHour || 0,
+          amount: (bill.totalWorkingHours || 0) * (bill.ratePerHour || 0)
+        }
+      ];
+
+      let tempRowY = tempTableY + 22 + 18;
+      tempItems.forEach((item) => {
+        let textHeight = 12;
+        if (item.description) {
+          const splitDesc = doc.splitTextToSize(item.description, 260);
+          textHeight += splitDesc.length * 10 + 4;
+        }
+        tempRowY += Math.max(20, textHeight + 8);
+      });
+
+      const calculatedRowY = tempRowY;
+
+      // Calculation summary Y
+      let tempSummaryY = calculatedRowY + 20;
+      const computedSubtotal = bill.subtotal || tempItems.reduce((sum, item) => sum + item.amount, 0);
+      tempSummaryY += 18; // Subtotal row
+      if (bill.additionalCharges > 0) tempSummaryY += 18;
+      if (bill.discount > 0) tempSummaryY += 18;
+      if (bill.taxRate > 0) tempSummaryY += 18;
+      tempSummaryY += 5; // Total Box highlight
+
+      const totalBoxBottomY = tempSummaryY + 32;
+
+      // Notes bottom
+      let notesBottomY = calculatedRowY;
+      if (bill.notes) {
+        const notesY = calculatedRowY + 16;
+        const splitNotes = doc.splitTextToSize(bill.notes, 260);
+        notesBottomY = notesY + 14 + (splitNotes.length * 12);
+      }
+
+      return Math.max(totalBoxBottomY, notesBottomY);
+    };
+
+    const upperContentBottomY = calculateUpperContentBottomY();
+    const footerTopY = 740;
+
+    // Add safe margins of at least 25px from any text or table
+    const safeMargin = 25;
+    const maxAllowedHeight = (footerTopY - safeMargin) - (upperContentBottomY + safeMargin);
+
+    // If there isn't enough free space for the watermark, automatically shrink it further instead of letting it overlap
+    if (drawHeight > maxAllowedHeight) {
+      drawHeight = Math.max(0, maxAllowedHeight);
+      drawWidth = drawHeight * imgRatio;
+    }
+
+    // Ensure width also does not exceed 28% of page width
+    if (drawWidth > pageWidth * maxPercentWidth) {
+      drawWidth = pageWidth * maxPercentWidth;
+      drawHeight = drawWidth / imgRatio;
+    }
+
+    // If too small (e.g. no layout space), do not render at all
+    if (drawWidth < 10 || drawHeight < 10) {
+      return;
+    }
+
+    // Centered horizontally
+    const drawX = (pageWidth - drawWidth) / 2;
+
+    // Centered vertically inside the empty background area
+    const centerYOfArea = (upperContentBottomY + footerTopY) / 2;
+    const drawY = centerYOfArea - (drawHeight / 2);
+
+    // Define clipping bounds centered in the area
+    const centerX = pageWidth / 2;
+    const centerY = centerYOfArea;
+    const radius = Math.min(drawWidth, drawHeight) / 2;
+
+    try {
+      doc.saveGraphicsState();
+
+      // Set watermark opacity to 70% transparent (30% visible)
+      const gStateTransparent = new GState({ opacity: 0.30 });
+      doc.setGState(gStateTransparent);
+
+      // Create perfect circular clipping path centered on page background
+      doc.circle(centerX, centerY, radius, null);
+      doc.clip();
+
+      // Detect format
+      const isPng = watermarkSource.startsWith("data:image/png");
+      const isWebp = watermarkSource.startsWith("data:image/webp");
+      const format = isPng ? "PNG" : (isWebp ? "WEBP" : "JPEG");
+
+      // Draw the image inside the clipped circle
+      doc.addImage(watermarkSource, format, drawX, drawY, drawWidth, drawHeight);
+
+      doc.restoreGraphicsState();
+    } catch (err) {
+      console.error("Error rendering circular watermark:", err);
+    }
+  };
+
+  // Render watermark behind all other invoice content
+  drawWatermark();
 
   // 1. Draw Outer Border
   doc.setDrawColor(224, 224, 224);
@@ -91,6 +234,14 @@ export const generatePdf = (bill: Bill, save: boolean = true): string | jsPDF =>
   }
   if (bill.mobileNumber) {
     doc.text(`Mob: ${bill.mobileNumber}`, margin, clientOffset);
+    clientOffset += 14;
+  }
+  if (bill.clientGstin) {
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(196, 149, 0); // primary
+    doc.text(`GSTIN: ${bill.clientGstin}`, margin, clientOffset);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(30, 32, 36);
   }
 
   // Right Column: INVOICE META
@@ -131,49 +282,78 @@ export const generatePdf = (bill: Bill, save: boolean = true): string | jsPDF =>
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.text("Work Description", margin + 8, tableY + 15);
-  doc.text("Hours", rightMargin - 180, tableY + 15, { align: "right" });
+  doc.text("Item / Work Description", margin + 8, tableY + 15);
+  doc.text("Qty / Hours", rightMargin - 180, tableY + 15, { align: "right" });
   doc.text("Rate (Rs)", rightMargin - 90, tableY + 15, { align: "right" });
   doc.text("Total (Rs)", rightMargin - 8, tableY + 15, { align: "right" });
 
+  // Get items (backward compatible fallback to single old fields)
+  const items: InvoiceItem[] = bill.items && bill.items.length > 0 ? bill.items : [
+    {
+      id: "old-fallback",
+      name: bill.workDescription || "Earthwork Contracting Services",
+      description: "",
+      quantity: bill.totalWorkingHours || 0,
+      rate: bill.ratePerHour || 0,
+      amount: (bill.totalWorkingHours || 0) * (bill.ratePerHour || 0)
+    }
+  ];
+
   // Row Details
-  let rowY = tableY + 22 + 20;
+  let rowY = tableY + 22 + 18;
 
   doc.setTextColor(30, 32, 36);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
 
-  // Wrap Description Text
-  const maxDescWidth = 260;
-  const splitDesc = doc.splitTextToSize(bill.workDescription, maxDescWidth);
-  doc.text(splitDesc, margin + 8, rowY);
+  items.forEach((item, index) => {
+    // Write Item Name
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text(item.name, margin + 8, rowY);
 
-  // Draw Numbers
-  const hoursStr = bill.totalWorkingHours.toFixed(2);
-  const rateStr = bill.ratePerHour.toFixed(2);
-  const subtotalAmount = bill.totalWorkingHours * bill.ratePerHour;
-  const subtotalStr = subtotalAmount.toFixed(2);
+    let textHeight = 12;
+    // Write Description below Name if present
+    if (item.description) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(112, 117, 122);
+      const splitDesc = doc.splitTextToSize(item.description, 260);
+      doc.text(splitDesc, margin + 8, rowY + 12);
+      textHeight += splitDesc.length * 10 + 4;
+    }
 
-  doc.text(hoursStr, rightMargin - 180, rowY, { align: "right" });
-  doc.text(`Rs ${rateStr}`, rightMargin - 90, rowY, { align: "right" });
-  doc.text(`Rs ${subtotalStr}`, rightMargin - 8, rowY, { align: "right" });
+    // Write Numbers on the same initial row level
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(30, 32, 36);
+    doc.text(item.quantity.toFixed(2), rightMargin - 180, rowY, { align: "right" });
+    doc.text(`Rs ${item.rate.toFixed(2)}`, rightMargin - 90, rowY, { align: "right" });
+    doc.text(`Rs ${item.amount.toFixed(2)}`, rightMargin - 8, rowY, { align: "right" });
 
-  // Calculate bottom of wrapped row
-  const rowHeight = Math.max(splitDesc.length * 12 + 10, 35);
-  rowY += rowHeight;
+    // Move Y forward
+    rowY += Math.max(20, textHeight + 8);
 
-  // Row Divider Line
+    // Draw thin line between items
+    doc.setDrawColor(240, 240, 240);
+    doc.setLineWidth(0.5);
+    doc.line(margin, rowY - 4, rightMargin, rowY - 4);
+  });
+
+  // Bottom Divider Line
   drawLine(rowY);
 
   // 7. CALCULATION SUMMARY
-  let summaryY = rowY + 25;
+  let summaryY = rowY + 20;
+
+  // Compute Subtotal if missing (fallback)
+  const computedSubtotal = bill.subtotal || items.reduce((sum, item) => sum + item.amount, 0);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
+  doc.setTextColor(30, 32, 36);
 
   // Subtotal row
   doc.text("Subtotal:", rightMargin - 160, summaryY);
-  doc.text(`Rs ${subtotalStr}`, rightMargin - 8, summaryY, { align: "right" });
+  doc.text(`Rs ${computedSubtotal.toFixed(2)}`, rightMargin - 8, summaryY, { align: "right" });
   summaryY += 18;
 
   // Additional Charges row (if any)
@@ -190,6 +370,14 @@ export const generatePdf = (bill: Bill, save: boolean = true): string | jsPDF =>
     summaryY += 18;
   }
 
+  // Tax row (if any)
+  if (bill.taxRate > 0) {
+    const taxAmt = bill.taxAmount || (computedSubtotal * (bill.taxRate / 100));
+    doc.text(`Tax (${bill.taxRate}%):`, rightMargin - 160, summaryY);
+    doc.text(`Rs ${taxAmt.toFixed(2)}`, rightMargin - 8, summaryY, { align: "right" });
+    summaryY += 18;
+  }
+
   // Final Total Box (Gold highlight)
   summaryY += 5;
   doc.setFillColor(196, 149, 0);
@@ -203,7 +391,7 @@ export const generatePdf = (bill: Bill, save: boolean = true): string | jsPDF =>
 
   // 8. NOTES SECTION (Left Aligned below rowY)
   if (bill.notes) {
-    const notesY = rowY + 20;
+    const notesY = rowY + 16;
     doc.setTextColor(112, 117, 122);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
