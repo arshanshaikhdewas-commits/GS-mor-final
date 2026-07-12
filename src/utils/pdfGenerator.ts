@@ -151,6 +151,7 @@ export const generatePdf = (bill: Bill, save: boolean = true): string | jsPDF =>
       // Create perfect circular clipping path centered on page background
       doc.circle(centerX, centerY, radius, null);
       doc.clip();
+      doc.discardPath();
 
       // Detect format
       const isPng = watermarkSource.startsWith("data:image/png");
