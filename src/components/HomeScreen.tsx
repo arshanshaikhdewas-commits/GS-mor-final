@@ -123,18 +123,25 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   React.useEffect(() => {
     const initWatermark = async () => {
-      if (typeof window !== "undefined" && localStorage.getItem("gs_watermark") === null) {
-        try {
-          const res = await fetch("/watermark.png");
-          if (res.ok) {
-            const blob = await res.blob();
-            const file = new File([blob], "watermark.png", { type: "image/png" });
-            const processedUrl = await processImageToCircularPng(file);
-            localStorage.setItem("gs_watermark", processedUrl);
-            setWatermarkUrl(processedUrl);
+      if (typeof window !== "undefined") {
+        const currentWatermark = localStorage.getItem("gs_watermark");
+        const isInitializedV2 = localStorage.getItem("gs_watermark_initialized_v2") === "true";
+        
+        // Initialize to image.png if not present or not initialized to V2 yet
+        if (currentWatermark === null || !isInitializedV2) {
+          try {
+            const res = await fetch("/image.png");
+            if (res.ok) {
+              const blob = await res.blob();
+              const file = new File([blob], "image.png", { type: "image/png" });
+              const processedUrl = await processImageToCircularPng(file);
+              localStorage.setItem("gs_watermark", processedUrl);
+              localStorage.setItem("gs_watermark_initialized_v2", "true");
+              setWatermarkUrl(processedUrl);
+            }
+          } catch (e) {
+            console.log("No workspace image.png file found or server offline.", e);
           }
-        } catch (e) {
-          console.log("No workspace watermark.png file found or server offline.", e);
         }
       }
     };
@@ -821,13 +828,27 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                       </button>
                     )}
 
-                     {/* Reset Button */}
+                      {/* Reset Button */}
                     {watermarkUrl !== null && (
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={async () => {
                           localStorage.removeItem("gs_watermark");
+                          localStorage.removeItem("gs_watermark_initialized_v2");
                           setWatermarkUrl(null);
+                          try {
+                            const res = await fetch("/image.png");
+                            if (res.ok) {
+                              const blob = await res.blob();
+                              const file = new File([blob], "image.png", { type: "image/png" });
+                              const processedUrl = await processImageToCircularPng(file);
+                              localStorage.setItem("gs_watermark", processedUrl);
+                              localStorage.setItem("gs_watermark_initialized_v2", "true");
+                              setWatermarkUrl(processedUrl);
+                            }
+                          } catch (e) {
+                            console.log("No workspace image.png file found or server offline.", e);
+                          }
                           setSettingsMsg(t.watermark_restored_msg);
                           setSettingsErr(null);
                         }}
