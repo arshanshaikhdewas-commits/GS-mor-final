@@ -1,7 +1,9 @@
 import React, { useState } from "react";
-import { ArrowLeft, Save, Calendar, User, MapPin, Phone, FileText, Percent, Plus, Trash2, IdCard } from "lucide-react";
+import { ArrowLeft, Save, Calendar, User, MapPin, Phone, FileText, Percent, Plus, Trash2, IdCard, Calculator, Clock } from "lucide-react";
 import { Bill, Language, InvoiceItem, Client } from "../types";
 import { translations } from "../translations";
+import { TimeCalculatorModal } from "./TimeCalculatorModal";
+import { parseTimeStringToHours, decimalHoursToTime } from "../utils/timeUtils";
 
 interface CreateBillScreenProps {
   language: Language;
@@ -49,6 +51,12 @@ export const CreateBillScreen: React.FC<CreateBillScreenProps> = ({
     }
   ]);
 
+  // Raw Quantity Text Inputs per Item ID (to support typing "8:30" or "8h 30m")
+  const [rawQuantityInputs, setRawQuantityInputs] = useState<Record<string, string>>({});
+
+  // Time Calculator Modal state
+  const [isTimeCalcOpen, setIsTimeCalcOpen] = useState(false);
+
   // Adjustments State
   const [additionalCharges, setAdditionalCharges] = useState("");
   const [discount, setDiscount] = useState("");
@@ -85,6 +93,11 @@ export const CreateBillScreen: React.FC<CreateBillScreenProps> = ({
   const handleRemoveItem = (id: string) => {
     if (items.length <= 1) return; // Must have at least one row
     setItems((prev) => prev.filter((item) => item.id !== id));
+    setRawQuantityInputs((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   };
 
   const handleUpdateItem = (id: string, field: keyof InvoiceItem, value: string) => {
@@ -99,8 +112,9 @@ export const CreateBillScreen: React.FC<CreateBillScreenProps> = ({
         } else if (field === "description") {
           updatedItem.description = value;
         } else if (field === "quantity") {
-          const qty = value === "" ? 0 : parseFloat(value);
-          updatedItem.quantity = isNaN(qty) ? 0 : qty;
+          setRawQuantityInputs((prevRaw) => ({ ...prevRaw, [id]: value }));
+          const parsedQty = parseTimeStringToHours(value);
+          updatedItem.quantity = isNaN(parsedQty) ? 0 : parsedQty;
           updatedItem.amount = updatedItem.quantity * updatedItem.rate;
         } else if (field === "rate") {
           const rateVal = value === "" ? 0 : parseFloat(value);
@@ -112,6 +126,17 @@ export const CreateBillScreen: React.FC<CreateBillScreenProps> = ({
       })
     );
     setError(null);
+  };
+
+  const handleApplyCalculatedHours = (itemId: string, calculatedHours: number) => {
+    setRawQuantityInputs((prev) => ({ ...prev, [itemId]: String(calculatedHours) }));
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== itemId) return item;
+        const amount = calculatedHours * item.rate;
+        return { ...item, quantity: calculatedHours, amount };
+      })
+    );
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -310,10 +335,32 @@ export const CreateBillScreen: React.FC<CreateBillScreenProps> = ({
 
           {/* DYNAMIC ITEM ROWS */}
           <div className="space-y-4" id="section-items-table">
-            <div className="flex justify-between items-center" id="items-meta-bar">
+            <div className="flex flex-wrap justify-between items-center gap-2" id="items-meta-bar">
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                 {t.work_description} / Items ({items.length})
               </h3>
+              <button
+                type="button"
+                onClick={() => setIsTimeCalcOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/20 transition-all cursor-pointer"
+                id="btn-open-time-calculator"
+              >
+                <Calculator className="w-3.5 h-3.5 text-amber-500" />
+                <span>{t.time_calc_btn}</span>
+              </button>
+            </div>
+
+            {/* Equation Notice Banner */}
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
+              <Clock className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+              <div className="space-y-0.5">
+                <p className="font-bold">
+                  {t.equation_formula}
+                </p>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                  {t.equation_notice}
+                </p>
+              </div>
             </div>
 
             {/* Desktop Table Header Labels */}
@@ -375,15 +422,19 @@ export const CreateBillScreen: React.FC<CreateBillScreenProps> = ({
                   <div className="col-span-2 space-y-1 md:space-y-0" id={`field-qty-${item.id}`}>
                     <label className="block md:hidden text-[10px] font-bold text-slate-400 uppercase">{t.quantity} *</label>
                     <input
-                      type="number"
-                      step="any"
-                      min="0"
-                      value={item.quantity === 0 ? "" : item.quantity}
+                      type="text"
+                      value={rawQuantityInputs[item.id] !== undefined ? rawQuantityInputs[item.id] : (item.quantity === 0 ? "" : String(item.quantity))}
                       onChange={(e) => handleUpdateItem(item.id, "quantity", e.target.value)}
-                      placeholder="0.00"
+                      placeholder="e.g. 8.5 or 8:30"
+                      title={t.format_hhmm_hint}
                       className="w-full px-2.5 py-1.5 text-sm text-left md:text-right rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-1 focus:ring-amber-500 focus:border-amber-500 outline-none transition-all font-mono"
                       required
                     />
+                    {item.quantity > 0 && (
+                      <span className="text-[10px] text-amber-600 dark:text-amber-400 font-mono font-bold block mt-0.5 text-left md:text-right">
+                        ⏱️ {decimalHoursToTime(item.quantity).formattedTimeStr}
+                      </span>
+                    )}
                   </div>
 
                   {/* Rate */}
@@ -565,6 +616,15 @@ export const CreateBillScreen: React.FC<CreateBillScreenProps> = ({
           </button>
         </form>
       </div>
+
+      {/* TIME & HOURS CALCULATOR MODAL */}
+      <TimeCalculatorModal
+        language={language}
+        items={items}
+        isOpen={isTimeCalcOpen}
+        onClose={() => setIsTimeCalcOpen(false)}
+        onApplyHours={handleApplyCalculatedHours}
+      />
     </div>
   );
 };

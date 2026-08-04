@@ -3,6 +3,7 @@ import { ArrowLeft, Eye, Download, Printer, Trash2, Calendar, MapPin, Phone, IdC
 import { Bill, Language, InvoiceItem } from "../types";
 import { translations } from "../translations";
 import { generatePdf } from "../utils/pdfGenerator";
+import { decimalHoursToTime } from "../utils/timeUtils";
 
 interface ViewBillScreenProps {
   bill: Bill;
@@ -241,7 +242,12 @@ export const ViewBillScreen: React.FC<ViewBillScreenProps> = ({
                       )}
                     </td>
                     <td className="p-3 text-right font-mono" id={`item-qty-${item.id}`}>
-                      {item.quantity.toFixed(2)}
+                      <div>{item.quantity.toFixed(2)}</div>
+                      {item.quantity > 0 && (
+                        <div className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold">
+                          {decimalHoursToTime(item.quantity).formattedTimeStr}
+                        </div>
+                      )}
                     </td>
                     <td className="p-3 text-right font-mono" id={`item-rate-${item.id}`}>
                       ₹{item.rate.toLocaleString("en-IN", { minimumFractionDigits: 2 })}

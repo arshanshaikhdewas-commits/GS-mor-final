@@ -96,7 +96,26 @@ export const translations: Record<Language, Record<string, string>> = {
     watermark_updated_msg: "Watermark updated successfully!",
     invalid_image_error: "Invalid image file. Please upload a valid PNG, JPG, JPEG, or WEBP image.",
     no_watermark_preview: "No Watermark Active",
-    watermark_hint: "Upload a PNG, JPG, JPEG, or WEBP image. It will be automatically cropped to a centered square, converted to a perfect circle with smooth transparent edges, and saved for all invoices."
+    watermark_hint: "Upload a PNG, JPG, JPEG, or WEBP image. It will be automatically cropped to a centered square, converted to a perfect circle with smooth transparent edges, and saved for all invoices.",
+    
+    // Time & Hours Calculator Keys
+    time_calculator: "Hours & Minutes Calculator",
+    time_calc_subtitle: "Calculate total working hours accurately (1 Hour = 60 Minutes, 1 Minute = 60 Seconds)",
+    time_calc_btn: "Hours / Mins Calculator",
+    time_mode_duration: "Hours + Minutes + Seconds",
+    time_mode_shift: "Start Time to End Time Shift",
+    hours_label: "Hours (hrs)",
+    minutes_label: "Minutes (mins)",
+    seconds_label: "Seconds (secs)",
+    start_time_label: "Start Time",
+    end_time_label: "End Time",
+    break_time_label: "Break / Rest (Mins)",
+    calculated_hours: "Total Working Hours",
+    equation_formula: "Formula: 1 Hr = 60 Mins | 1 Min = 60 Secs",
+    equation_notice: "Notice: 1 Hour = 60 Minutes (not 100). Minutes are converted to decimal (e.g. 30 mins = 0.50 hrs, 15 mins = 0.25 hrs, 45 mins = 0.75 hrs).",
+    apply_hours_to_item: "Apply Calculated Hours to Item",
+    select_target_item: "Select Target Line Item",
+    format_hhmm_hint: "Tip: You can also enter time like 8:30 (8 hrs 30 mins) or 8h 30m directly in the Qty field!"
   },
   hi: {
     app_name: "जीएस अर्थमूवर्स बिलिंग",
@@ -193,6 +212,25 @@ export const translations: Record<Language, Record<string, string>> = {
     watermark_updated_msg: "वॉटरमार्क सफलतापूर्वक अपडेट किया गया!",
     invalid_image_error: "अमान्य छवि फ़ाइल। कृपया एक वैध PNG, JPG, JPEG या WEBP छवि अपलोड करें।",
     no_watermark_preview: "कोई वॉटरमार्क सक्रिय नहीं है",
-    watermark_hint: "एक PNG, JPG, JPEG या WEBP छवि अपलोड करें। इसे स्वचालित रूप से एक केंद्रित वर्ग में क्रॉप किया जाएगा, चिकनी पारदर्शी किनारों के साथ एक आदर्श सर्कल में परिवर्तित किया जाएगा, और भविष्य के सभी बिलों के लिए सहेजा जाएगा।"
+    watermark_hint: "एक PNG, JPG, JPEG या WEBP छवि अपलोड करें। इसे स्वचालित रूप से एक केंद्रित वर्ग में क्रॉप किया जाएगा, चिकनी पारदर्शी किनारों के साथ एक आदर्श सर्कल में परिवर्तित किया जाएगा, और भविष्य के सभी बिलों के लिए सहेजा जाएगा।",
+
+    // Time & Hours Calculator Keys
+    time_calculator: "घंटे और मिनट कैलकुलेटर",
+    time_calc_subtitle: "सटीक रूप से कार्य घंटों की गणना करें (1 घंटा = 60 मिनट, 1 मिनट = 60 सेकंड)",
+    time_calc_btn: "घंटे / मिनट कैलकुलेटर",
+    time_mode_duration: "घंटे + मिनट + सेकंड",
+    time_mode_shift: "शुरुआती समय से समाप्ति समय",
+    hours_label: "घंटे (hrs)",
+    minutes_label: "मिनट (mins)",
+    seconds_label: "सेकंड (secs)",
+    start_time_label: "शुरू होने का समय",
+    end_time_label: "समाप्त होने का समय",
+    break_time_label: "ब्रेक / विश्राम (मिनट)",
+    calculated_hours: "कुल कार्य के घंटे",
+    equation_formula: "सूत्र: 1 घंटा = 60 मिनट | 1 मिनट = 60 सेकंड",
+    equation_notice: "ध्यान दें: 1 घंटा = 60 मिनट (100 नहीं)। मिनटों को दशमलव में परिवर्तित किया जाता है (जैसे: 30 मिनट = 0.50 घंटे, 15 मिनट = 0.25 घंटे, 45 मिनट = 0.75 घंटे)।",
+    apply_hours_to_item: "गणना किए गए घंटों को आइटम में जोड़ें",
+    select_target_item: "टारगेट आइटम चुनें",
+    format_hhmm_hint: "संकेत: आप मात्रा फ़ील्ड में सीधे 8:30 (8 घंटे 30 मिनट) या 8h 30m भी दर्ज कर सकते हैं!"
   },
 };

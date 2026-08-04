@@ -1,6 +1,7 @@
 import { jsPDF, GState } from "jspdf";
 import { Bill, InvoiceItem } from "../types";
 import { watermarkImage } from "./watermarkImage";
+import { decimalHoursToTime } from "./timeUtils";
 
 export const generatePdf = (bill: Bill, save: boolean = true): string | jsPDF => {
   const doc = new jsPDF({
@@ -324,9 +325,18 @@ export const generatePdf = (bill: Bill, save: boolean = true): string | jsPDF =>
 
     // Write Numbers on the same initial row level
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
+    doc.setFontSize(9.5);
     doc.setTextColor(30, 32, 36);
-    doc.text(item.quantity.toFixed(2), rightMargin - 180, rowY, { align: "right" });
+
+    const timeInfo = decimalHoursToTime(item.quantity);
+    let qtyStr = item.quantity.toFixed(2);
+    if (timeInfo.minutes > 0 && timeInfo.hours > 0) {
+      qtyStr += ` (${timeInfo.hours}h ${timeInfo.minutes}m)`;
+    } else if (timeInfo.hours === 0 && timeInfo.minutes > 0) {
+      qtyStr += ` (${timeInfo.minutes}m)`;
+    }
+
+    doc.text(qtyStr, rightMargin - 180, rowY, { align: "right" });
     doc.text(`Rs ${item.rate.toFixed(2)}`, rightMargin - 90, rowY, { align: "right" });
     doc.text(`Rs ${item.amount.toFixed(2)}`, rightMargin - 8, rowY, { align: "right" });
 
