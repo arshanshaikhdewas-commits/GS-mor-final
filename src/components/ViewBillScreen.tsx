@@ -4,6 +4,7 @@ import { Bill, Language, InvoiceItem } from "../types";
 import { translations } from "../translations";
 import { generatePdf } from "../utils/pdfGenerator";
 import { decimalHoursToTime } from "../utils/timeUtils";
+import { watermarkImage } from "../utils/watermarkImage";
 
 interface ViewBillScreenProps {
   bill: Bill;
@@ -21,6 +22,9 @@ export const ViewBillScreen: React.FC<ViewBillScreenProps> = ({
   const t = translations[language];
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+
+  const savedWm = typeof window !== "undefined" ? localStorage.getItem("gs_watermark") : null;
+  const wmUrl = savedWm === "none" ? null : (savedWm || watermarkImage);
 
   // Fallback items mapping for backward compatibility
   const items: InvoiceItem[] = bill.items && bill.items.length > 0 ? bill.items : [
@@ -161,6 +165,13 @@ export const ViewBillScreen: React.FC<ViewBillScreenProps> = ({
         <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 shadow-md p-6 sm:p-8 relative flex flex-col min-h-[680px]" id="invoice-sheet">
           {/* Header Accent Strip */}
           <div className="absolute top-0 left-0 right-0 h-2 bg-amber-500 rounded-t-2xl" id="sheet-accent-bar" />
+
+          {/* Background Watermark Overlay */}
+          {wmUrl && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20 overflow-hidden rounded-2xl z-0" id="sheet-watermark-overlay">
+              <img src={wmUrl} alt="Watermark" className="w-56 h-56 object-contain rounded-full" />
+            </div>
+          )}
 
           {/* Company Details */}
           <div className="flex justify-between items-start mt-2 mb-6" id="sheet-header">

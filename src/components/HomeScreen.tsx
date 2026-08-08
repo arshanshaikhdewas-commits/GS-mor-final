@@ -125,10 +125,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     const initWatermark = async () => {
       if (typeof window !== "undefined") {
         const currentWatermark = localStorage.getItem("gs_watermark");
-        const isInitializedV2 = localStorage.getItem("gs_watermark_initialized_v2") === "true";
+        const isInitializedV3 = localStorage.getItem("gs_watermark_initialized_v3") === "true";
         
-        // Initialize to image.png if not present or not initialized to V2 yet
-        if (currentWatermark === null || !isInitializedV2) {
+        // Initialize to image.png if not present or not initialized to V3 yet
+        if (currentWatermark === null || !isInitializedV3) {
           try {
             const res = await fetch("/image.png");
             if (res.ok) {
@@ -136,11 +136,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               const file = new File([blob], "image.png", { type: "image/png" });
               const processedUrl = await processImageToCircularPng(file);
               localStorage.setItem("gs_watermark", processedUrl);
-              localStorage.setItem("gs_watermark_initialized_v2", "true");
+              localStorage.setItem("gs_watermark_initialized_v3", "true");
               setWatermarkUrl(processedUrl);
+            } else {
+              localStorage.setItem("gs_watermark", watermarkImage);
+              localStorage.setItem("gs_watermark_initialized_v3", "true");
+              setWatermarkUrl(watermarkImage);
             }
           } catch (e) {
             console.log("No workspace image.png file found or server offline.", e);
+            localStorage.setItem("gs_watermark", watermarkImage);
+            localStorage.setItem("gs_watermark_initialized_v3", "true");
+            setWatermarkUrl(watermarkImage);
           }
         }
       }
@@ -835,6 +842,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         onClick={async () => {
                           localStorage.removeItem("gs_watermark");
                           localStorage.removeItem("gs_watermark_initialized_v2");
+                          localStorage.removeItem("gs_watermark_initialized_v3");
                           setWatermarkUrl(null);
                           try {
                             const res = await fetch("/image.png");
@@ -843,11 +851,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                               const file = new File([blob], "image.png", { type: "image/png" });
                               const processedUrl = await processImageToCircularPng(file);
                               localStorage.setItem("gs_watermark", processedUrl);
-                              localStorage.setItem("gs_watermark_initialized_v2", "true");
+                              localStorage.setItem("gs_watermark_initialized_v3", "true");
                               setWatermarkUrl(processedUrl);
+                            } else {
+                              localStorage.setItem("gs_watermark", watermarkImage);
+                              localStorage.setItem("gs_watermark_initialized_v3", "true");
+                              setWatermarkUrl(watermarkImage);
                             }
                           } catch (e) {
                             console.log("No workspace image.png file found or server offline.", e);
+                            localStorage.setItem("gs_watermark", watermarkImage);
+                            localStorage.setItem("gs_watermark_initialized_v3", "true");
+                            setWatermarkUrl(watermarkImage);
                           }
                           setSettingsMsg(t.watermark_restored_msg);
                           setSettingsErr(null);

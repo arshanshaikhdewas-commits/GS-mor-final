@@ -44,8 +44,8 @@ export const generatePdf = (bill: Bill, save: boolean = true): string | jsPDF =>
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
 
-    // Default watermark aspect ratio is 1200 / 896, custom uploaded/cropped is a perfect 1:1 square
-    const imgRatio = isCustom ? 1.0 : (1200 / 896);
+    // Watermark aspect ratio is 1:1 square (circular cropped image.png)
+    const imgRatio = 1.0;
 
     // Limit the watermark size to a maximum of 25-30% of the page width (we choose 28%)
     const maxPercentWidth = 0.28;
